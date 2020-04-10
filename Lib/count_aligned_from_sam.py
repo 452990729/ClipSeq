@@ -1,0 +1,1 @@
+/mnt/dfc_data1/software/anaconda2/bin/count_aligned_from_sam.py

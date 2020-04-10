@@ -1,0 +1,3 @@
+export PATH=/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Software/ENV:$PATH
+export LD_LIBRARY_PATH=/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Software/ENV/LD:$LD_LIBRARY_PATH
+/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Software/snakemake --cluster "qsub -cwd -V -b y -S /bin/bash -o {log.o} -e {log.e}" -j 20 -s /mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Test/snakefile.txt --printshellcmds --latency-wait 10

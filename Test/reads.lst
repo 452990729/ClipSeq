@@ -1,0 +1,3 @@
+SAFB_Input	SAFB_Input	/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Test/Raw/SAFB_InputTest_1.fastq.gz,/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Test/Raw/SAFB_InputTest_2.fastq.gz
+SAFB_Rep1	SAFB_Rep	/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Test/Raw/SAFB_Rep1Test_1.fastq.gz,/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Test/Raw/SAFB_Rep1Test_2.fastq.gz
+SAFB_Rep2	SAFB_Rep	/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Test/Raw/SAFB_Rep2Test_1.fastq.gz,/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Test/Raw/SAFB_Rep2Test_2.fastq.gz

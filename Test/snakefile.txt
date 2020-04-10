@@ -1,0 +1,178 @@
+Samples = "SAFB_Input SAFB_Rep1 SAFB_Rep2".split()
+Groups = "SAFB_Input SAFB_Rep SAFB_Rep".split()
+rule All:
+	input:
+		expand("6.Peak/{group}.final.r2.norm.pos.bw", group=Groups), expand("6.Peak/{group}.final.r2.norm.neg.bw", group=Groups), expand("6.Peak/{group}.final.r2.peaks.fixed.bb", group=Groups)
+
+rule QC:
+	input:
+		a = "RawData/{sample}_1.fq.gz", b = "RawData/{sample}_2.fq.gz"
+	output:
+		a = "1.QC/{sample}_1.clean.fq.gz", b = "1.QC/{sample}_2.clean.fq.gz", c = "1.QC/{sample}_QC_report.json", d = "1.QC/{sample}_QC_report.html"
+	log:
+		e = "logs/{sample}.qc.e", o = "logs/{sample}.qc.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Software/fastp -i {input.a} -o {output.a} -I {input.b} -O {output.b} -A -j {output.c} -h {output.d}"
+
+rule Cutadapter:
+	input:
+		a = "1.QC/{sample}_1.clean.fq.gz", b = "1.QC/{sample}_2.clean.fq.gz"
+	output:
+		a = "2.Trim/{sample}_1.adapterTrim.fastq.gz", b = "2.Trim/{sample}_2.adapterTrim.fastq.gz"
+	log:
+		e = "logs/Cutadapter.e", o = "logs/Cutadapter.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Software/cutadapt -f fastq --match-read-wildcards --times 1 -e 0.1 -O 1 -m 18 -a NNNNNAGATCGGAAGAGCACACGTCTGAACTCCAGTCAC -g CTTCCGATCTACAAGTT -g CTTCCGATCTTGGTCCT -A AACTTGTAGATCGGA -A AGGACCAAGATCGGA -A ACTTGTAGATCGGAA -A GGACCAAGATCGGAA -A CTTGTAGATCGGAAG -A GACCAAGATCGGAAG -A TTGTAGATCGGAAGA -A ACCAAGATCGGAAGA -A TGTAGATCGGAAGAG -A CCAAGATCGGAAGAG -A GTAGATCGGAAGAGC -A CAAGATCGGAAGAGC -A TAGATCGGAAGAGCG -A AAGATCGGAAGAGCG -A AGATCGGAAGAGCGT -A GATCGGAAGAGCGTC -A ATCGGAAGAGCGTCG -A TCGGAAGAGCGTCGT -A CGGAAGAGCGTCGTG -A GGAAGAGCGTCGTGT -o {output.a} -p {output.b} {input.a} {input.b}"
+
+rule Cutadapter2:
+	input:
+		a = "2.Trim/{sample}_1.adapterTrim.fastq.gz", b = "2.Trim/{sample}_2.adapterTrim.fastq.gz"
+	output:
+		a = "2.Trim/{sample}_1.adapterTrim_round2.fastq.gz", b = "2.Trim/{sample}_2.adapterTrim_round2.fastq.gz"
+	log:
+		e = "logs/Cutadapter2.e", o = "logs/Cutadapter2.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Software/cutadapt -f fastq --match-read-wildcards --times 1 -e 0.1 -O 5 -m 18 -A AACTTGTAGATCGGA -A AGGACCAAGATCGGA -A ACTTGTAGATCGGAA -A GGACCAAGATCGGAA -A CTTGTAGATCGGAAG -A GACCAAGATCGGAAG -A TTGTAGATCGGAAGA -A ACCAAGATCGGAAGA -A TGTAGATCGGAAGAG -A CCAAGATCGGAAGAG -A GTAGATCGGAAGAGC -A CAAGATCGGAAGAGC -A TAGATCGGAAGAGCG -A AAGATCGGAAGAGCG -A AGATCGGAAGAGCGT -A GATCGGAAGAGCGTC -A ATCGGAAGAGCGTCG -A TCGGAAGAGCGTCGT -A CGGAAGAGCGTCGTG -A GGAAGAGCGTCGTGT -o {output.a} -p {output.b} {input.a} {input.b}"
+
+rule RmRep:
+	input:
+		a = "2.Trim/{sample}_1.adapterTrim_round2.fastq.gz", b = "2.Trim/{sample}_2.adapterTrim_round2.fastq.gz"
+	output:
+		a = "3.RmRep/{sample}.rep.bam", b = "3.RmRep/{sample}.rep.bamUnmapped.out.mate1", c = "3.RmRep/{sample}.rep.bamUnmapped.out.mate2"
+	log:
+		e = "logs/RmRep.e", o = "logs/RmRep.o"
+	threads: 4
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Software/STAR --runMode alignReads --runThreadN {threads} --genomeDir /mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Database/RepBase/STAR_index --readFilesIn {input.a} {input.b} --outSAMunmapped Within --outFilterMultimapNmax 30 --outFilterMultimapScoreRange 1 --outFileNamePrefix {output.a} --outSAMattributes All --readFilesCommand zcat --outStd BAM_Unsorted --outSAMtype BAM Unsorted --outFilterType BySJout --outReadsUnmapped Fastx --outFilterScoreMin 10 --outSAMattrRGline ID:foo SM:illumina --alignEndsType EndToEnd > {output.a}"
+
+rule StatRep:
+	input:
+		"3.RmRep/{sample}.rep.bam"
+	output:
+		"3.RmRep/{sample}.rep.bam.metrics"
+	log:
+		e = "logs/StatRep.e", o = "logs/StatRep.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Software/samtools view {input} | /mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Lib/count_aligned_from_sam.py > {output}"
+
+rule FastqSort:
+	input:
+		"3.RmRep/{sample}.rep.bamUnmapped.out.mate1"
+	output:
+		"3.RmRep/{sample}.rep.bamUnmapped.out.sorted.mate1"
+	log:
+		e = "logs/FastqSort.e", o = "logs/FastqSort.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Software/fastq-sort --id {input} > {output}"
+
+rule FastqSort2:
+	input:
+		"3.RmRep/{sample}.rep.bamUnmapped.out.mate2"
+	output:
+		"3.RmRep/{sample}.rep.bamUnmapped.out.sorted.mate2"
+	log:
+		e = "logs/FastqSort2.e", o = "logs/FastqSort2.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Software/fastq-sort --id {input} > {output}"
+
+rule Align:
+	input:
+		a = "3.RmRep/{sample}.rep.bamUnmapped.out.sorted.mate1", b = "3.RmRep/{sample}.rep.bamUnmapped.out.sorted.mate2"
+	output:
+		"4.Align/{sample}.rep.align.bam"
+	log:
+		e = "logs/Align.e", o = "logs/Align.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Software/STAR --runMode alignReads --runThreadN {threads} --genomeDir /mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Database/hg19/STAR_index --readFilesIn {input.a} {input.b} --outSAMunmapped Within --outFilterMultimapNmax 1 --outFilterMultimapScoreRange 1 --outFileNamePrefix {output} --outStd BAM_Unsorted --outSAMtype BAM Unsorted --outFilterType BySJout --outReadsUnmapped Fastx --outFilterScoreMin 10 --outSAMattrRGline ID:foo SM:illumina --alignEndsType EndToEnd > {output}"
+
+rule RmDup:
+	input:
+		"4.Align/{sample}.rep.align.bam"
+	output:
+		a = "4.Align/{sample}.rep.align.rmDup.bam", b = "4.Align/{sample}.rep.align.rmDup.metrics"
+	log:
+		e = "logs/RmDup.e", o = "logs/RmDup.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Lib/barcode_collapse_pe.py --bam {input} --out_file {output.a} --metrics_file {output.b}"
+
+rule SortSam:
+	input:
+		"4.Align/{sample}.rep.align.rmDup.bam"
+	output:
+		"4.Align/{sample}.rep.align.rmDup.sorted.bam"
+	log:
+		e = "logs/SortSam.e", o = "logs/SortSam.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Software/picard SortSam INPUT={input} OUTPUT={output} SORT_ORDER=coordinate"
+
+rule Merge:
+	input:
+		expand("4.Align/{sample}.rep.align.rmDup.sorted.bam", sample=Samples)
+	output:
+		a = "5.Merge", b = expand("5.Merge/{group}.final.bam", group=Groups)
+	log:
+		e = "logs/Merge.e", o = "logs/Merge.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Lib/MergeBam.py -i reads.lst -o {output.a}"
+
+rule Index:
+	input:
+		"5.Merge/{group}.final.bam"
+	output:
+		"5.Merge/{group}.final.bam.bai"
+	log:
+		e = "logs/Index.e", o = "logs/Index.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Software/samtools index {input} {output}"
+
+rule GetRead2:
+	input:
+		a = "5.Merge/{group}.final.bam", b = "5.Merge/{group}.final.bam.bai"
+	output:
+		"5.Merge/{group}.final.r2.bam"
+	log:
+		e = "logs/GetRead2.e", o = "logs/GetRead2.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Software/samtools view -hb -f 128 {input.a} > {output}"
+
+rule MakeBigwig:
+	input:
+		"5.Merge/{group}.final.r2.bam"
+	output:
+		a = "6.Peak/{group}.final.r2.norm.pos.bw", b = "6.Peak/{group}.final.r2.norm.neg.bw"
+	log:
+		e = "logs/MakeBigwig.e", o = "logs/MakeBigwig.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Lib/MakeBigwig.py --bam {input} --genome /mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Database/hg19/hg19.chrom.sizes --bw_pos {output.a} --bw_neg {output.b}"
+
+rule CallPeak:
+	input:
+		"5.Merge/{group}.final.r2.bam"
+	output:
+		"6.Peak/{group}.final.r2.peaks.bed"
+	log:
+		e = "logs/CallPeak.e", o = "logs/CallPeak.o"
+	threads: 4
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Software/clipper -b {input} -s hg19 -o {output} --save-pickle --processors {threads}"
+
+rule FixPeak:
+	input:
+		"6.Peak/{group}.final.r2.peaks.bed"
+	output:
+		"6.Peak/{group}.final.r2.peaks.fixed.bed"
+	log:
+		e = "logs/FixPeak.e", o = "logs/FixPeak.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Lib/fix_scores.py --bed {input} --out_file {output}"
+
+rule BedToBigBed:
+	input:
+		"6.Peak/{group}.final.r2.peaks.fixed.bed"
+	output:
+		"6.Peak/{group}.final.r2.peaks.fixed.bb"
+	log:
+		e = "logs/BedToBigBed.e", o = "logs/BedToBigBed.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Software/bedToBigBed {input} /mnt/dfc_data1/home/lixuefei/Pipeline/ClipSeq/Bin/../Database/hg19/hg19.chrom.sizes {output} -type=bed6+4"
+
